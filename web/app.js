@@ -8,12 +8,15 @@ const TYPES = ["user", "feedback", "project", "reference"];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const enc = encodeURIComponent;
 const $ = (sel) => $app.querySelector(sel);
+let routeController = null;
+let routeLoading = false;
 
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     method: opts.method || "GET",
     headers: opts.body ? { "content-type": "application/json" } : {},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
+    signal: opts.signal || (routeLoading ? routeController?.signal : undefined),
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && data.login) {
@@ -105,17 +108,31 @@ function parseHash() {
 }
 
 async function route() {
+  routeController?.abort();
+  const controller = new AbortController();
+  routeController = controller;
+  routeLoading = true;
   const { section, arg, query } = parseHash();
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === section));
   const view = { "": overview, memories: arg ? memoryDetail : memories, skills: arg ? skillDetail : skills, profile, clients, activity }[section];
   dirty = false;
   currentHash = location.hash;
+  const loading = setTimeout(() => {
+    if (routeController === controller) $app.innerHTML = '<div class="loading-state" role="status">Loading…</div>';
+  }, 160);
+  $app.setAttribute("aria-busy", "true");
   try {
-    $app.innerHTML = "";
     window.scrollTo(0, 0);
     await (view || overview)(arg, query);
   } catch (e) {
+    if (controller.signal.aborted) return;
     $app.innerHTML = `<h1>${e.status === 404 ? "Not found" : "Something went wrong"}</h1><p class="sub">${esc(e.message)}</p><p><a href="#/">← Overview</a></p>`;
+  } finally {
+    clearTimeout(loading);
+    if (routeController === controller) {
+      routeLoading = false;
+      $app.removeAttribute("aria-busy");
+    }
   }
 }
 
@@ -209,27 +226,21 @@ async function overview() {
   $app.innerHTML = `
     <h1>Your hub</h1>
     <p class="sub">One place for your memories, context and skills, shared by every AI tool you connect.</p>
-    <div class="cards">
-      <a class="stat" href="#/memories"><b>${d.counts.memories}</b><span>memories</span></a>
-      <a class="stat" href="#/memories"><b>${d.counts.projects}</b><span>projects</span></a>
-      <a class="stat" href="#/skills"><b>${d.counts.skills}</b><span>skills</span></a>
-      <a class="stat" href="#/clients"><b>${d.clients.length}</b><span>connected apps</span></a>
-    </div>
+    <p class="hub-summary"><a href="#/memories">${d.counts.memories} memories</a><span>·</span><a href="#/memories">${d.counts.projects} projects</a><span>·</span><a href="#/skills">${d.counts.skills} skills</a><span>·</span><a href="#/clients">${d.clients.length} connections</a></p>
     <div class="split">
       <div>
         <h2>Recently updated memories</h2>
         <div class="panel list">${d.recentMemories.map(memoryItem).join("") || '<div class="empty">No memories yet.</div>'}</div>
       </div>
       <div>
-        <h2>Connected apps</h2>
+        <h2>Connections</h2>
         <div class="panel list">${
           d.clients
             .map((c) => `<div class="item"><div class="row"><span class="title">${esc(c.client)}</span><span class="badge">${esc(c.adapter)}</span></div>
               <div class="meta"><span>${esc(c.transport)}</span><span>${c.calls} tool calls</span><span>last seen ${when(c.lastSeen)}</span></div></div>`)
             .join("") || '<div class="empty">No app has connected yet.</div>'
         }</div>
-        <h2 class="row spread">Latest activity <a class="more" href="#/activity">All activity →</a></h2>
-        <div class="panel">${activityTable(d.activity.slice(0, 8))}</div>
+        <p class="overview-link"><a href="#/activity">View recent activity →</a></p>
       </div>
     </div>`;
 }
@@ -240,7 +251,7 @@ function memoryItem(m, { showScope = true } = {}) {
   return `<a class="item" href="#/memories/${enc(m.id)}">
     <div class="row"><span class="title">${esc(m.name)}</span>${typeBadge(m.type)}${showScope ? `<span class="scope">${scopeLabel(m)}</span>` : ""}</div>
     <div class="desc clamp">${esc(m.description)}</div>
-    <div class="meta">${when(m.updated)}${m.source ? `<span>by ${esc(m.source)}</span>` : ""}</div>
+    <div class="meta">${when(m.updated)}</div>
     ${m.snippet ? `<div class="meta clamp">${esc(m.snippet)}</div>` : ""}
   </a>`;
 }
@@ -266,23 +277,26 @@ async function memories(_, query) {
 
   // Group by scope when browsing everything, so projects read as sections.
   let listHtml;
-  if (scope === "all" && !q && list.length) {
+  if (scope === "all" && !q && !type && list.length) {
     const groups = new Map();
     for (const m of list) {
       const k = m.project || "global";
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(m);
     }
-    const keys = [...groups.keys()].sort((a, b) => (a === "global" ? -1 : b === "global" ? 1 : a.localeCompare(b)));
-    listHtml = keys
-      .map((k) => `<h3 class="group">${k === "global" ? "Global" : esc(k)} <span>${groups.get(k).length}</span></h3><div class="panel list">${groups.get(k).map((m) => memoryItem(m, { showScope: false })).join("")}</div>`)
-      .join("");
+    const global = groups.get("global") || [];
+    const projects = [...groups.keys()].filter((k) => k !== "global").sort((a, b) => a.localeCompare(b));
+    listHtml = `${global.length ? `<h2 class="group">Global <span>${global.length}</span></h2>
+      <div class="panel list">${global.slice(0, 4).map((m) => memoryItem(m, { showScope: false })).join("")}
+      ${global.length > 4 ? `<a class="group-more" href="#/memories?scope=global">View all global memories →</a>` : ""}</div>` : ""}
+      ${projects.length ? `<h2 class="group">Projects <span>${projects.length}</span></h2><div class="panel list">${projects.map((k) =>
+        `<a class="item project-item" href="#/memories?scope=${enc(k)}"><span class="title">${esc(k)}</span><span class="scope">${groups.get(k).length} ${groups.get(k).length === 1 ? "memory" : "memories"} →</span></a>`).join("")}</div>` : ""}`;
   } else {
     listHtml = `<div class="panel list">${list.map(memoryItem).join("") || `<div class="empty">No memories match${q ? ` “${esc(q)}”` : ""}.</div>`}</div>`;
   }
 
   $app.innerHTML = `
-    <div class="toolbar"><div class="grow"><h1>Memories</h1><p class="sub tight">One fact per memory. Every connected app reads and writes these same files.</p></div>
+    <div class="toolbar"><div class="grow"><h1>Memories</h1><p class="sub tight">What your connected AI apps should remember, organized by project.</p></div>
       <div class="actions"><a class="btn primary" href="#/memories/new">New memory</a></div></div>
     <div class="filters">
       <form id="search" class="row"><input id="q" class="grow" type="search" placeholder="Search memories…" value="${esc(q)}"><button>Search</button></form>
@@ -292,10 +306,10 @@ async function memories(_, query) {
           <option value="global">Global (${countIn((m) => m.scope === "global")})</option>
           ${d.projects.map((p) => `<option value="${esc(p)}">${esc(p)} (${countIn((m) => m.project === p)})</option>`).join("")}
         </select>
-        <div class="chips">
-          <button class="chip ${type ? "" : "on"}" data-type="">all types</button>
-          ${TYPES.map((t) => `<button class="chip ${type === t ? "on" : ""}" data-type="${t}">${t} <span class="n">${countIn((m) => m.type === t)}</span></button>`).join("")}
-        </div>
+        <select id="type" aria-label="Memory type">
+          <option value="">All types</option>
+          ${TYPES.map((t) => `<option value="${t}">${t} (${countIn((m) => m.type === t)})</option>`).join("")}
+        </select>
       </div>
       ${q || scope !== "all" || type ? `<p class="meta">${list.length} of ${all.length} shown · <a href="#/memories">clear filters</a></p>` : ""}
     </div>
@@ -304,11 +318,13 @@ async function memories(_, query) {
   const sel = $("#scope");
   sel.value = scope;
   sel.onchange = () => setQ("scope", sel.value === "all" ? "" : sel.value);
+  const typeSel = $("#type");
+  typeSel.value = type;
+  typeSel.onchange = () => setQ("type", typeSel.value);
   $("#search").onsubmit = (e) => {
     e.preventDefault();
     setQ("q", $("#q").value.trim());
   };
-  $app.querySelectorAll("[data-type]").forEach((b) => (b.onclick = () => setQ("type", b.dataset.type)));
   if (q) $("#q").focus();
 }
 
@@ -410,9 +426,9 @@ async function skills(_, query) {
   const q = query.get("q") || "";
   const d = await api(`/api/skills${q ? `?q=${enc(q)}` : ""}`);
   $app.innerHTML = `
-    <div class="toolbar"><div class="grow"><h1>Skills</h1><p class="sub tight">SKILL.md folders, the format Claude and ChatGPT both use. Apps see the names and descriptions, then load a skill by name.</p></div>
+    <div class="toolbar"><div class="grow"><h1>Skills</h1><p class="sub tight">Shared instructions your connected AI apps can find and use.</p></div>
       <div class="actions"><a class="btn primary" href="#/skills/new">New skill</a></div></div>
-    <form id="search" class="row filters"><input id="q" class="grow" type="search" placeholder="Find a skill by name or topic…" value="${esc(q)}"><button>Search</button></form>
+    <form id="search" class="row search-form"><input id="q" class="grow" type="search" aria-label="Search skills" placeholder="Find a skill by name or topic…" value="${esc(q)}"><button>Search</button></form>
     ${q ? `<p class="meta">${d.skills.length} match${d.skills.length === 1 ? "" : "es"} · <a href="#/skills">show all</a></p>` : ""}
     <div class="panel list">${
       d.skills
@@ -530,19 +546,19 @@ async function clients(_, query) {
   const readTools = a.tools.filter((t) => t.annotations?.readOnlyHint);
   $app.innerHTML = `
     <h1>Clients</h1>
-    <p class="sub">Each AI app gets its own adapter: which tools it sees, how they're named, the instructions it's given and the shape of the results. The data underneath is the same.</p>
+    <p class="sub">Choose an AI app to see its connection address and available tools.</p>
     <div class="tabs">${d.adapters.map((x) => `<a class="chip ${x.id === a.id ? "on" : ""}" href="#/clients?a=${x.id}">${esc(x.label)}</a>`).join("")}</div>
     <p>${esc(a.summary)}</p>
     <div class="panel"><table class="kv">
       <tr><th>Endpoint</th><td><code>${esc(a.endpoint)}</code></td></tr>
       <tr><th>Auto-detect</th><td><code>${esc(d.autoEndpoint)}</code> <span class="meta">picks the adapter from the app's name</span></td></tr>
-      <tr><th>stdio</th><td><code>node server/index.mjs --client ${esc(a.id)}</code></td></tr></table></div>
+      ${d.autoEndpoint.startsWith("https://") ? "" : `<tr><th>Local</th><td><code>node server/index.mjs --client ${esc(a.id)}</code></td></tr>`}</table></div>
     <h2>See what ${esc(a.label)} sees</h2>
     <form id="run-form" class="row"><select id="tool" aria-label="Tool">${readTools.map((t) => `<option>${esc(t.name)}</option>`).join("")}</select>
       <input id="args" class="grow mono" aria-label="Arguments (JSON)"><button class="primary">Run</button></form>
     <pre class="out" id="out">Pick a read-only tool and run it to see exactly what ${esc(a.label)} receives.</pre>
     <h2>Tools <span class="n">${a.tools.length}</span></h2>
-    <div class="panel"><table><tr><th>Tool</th><th>Description</th><th>Kind</th></tr>${a.tools
+    <div class="panel table-scroll"><table class="tools-table"><tr><th>Tool</th><th>Description</th><th>Kind</th></tr>${a.tools
       .map((t) => `<tr><td><code>${esc(t.name)}</code></td><td>${esc(t.description)}<details><summary>input schema</summary><pre class="out">${esc(JSON.stringify(t.inputSchema, null, 2))}</pre></details></td>
         <td>${t.annotations?.readOnlyHint ? '<span class="badge">read</span>' : t.annotations?.destructiveHint ? '<span class="badge bad">delete</span>' : '<span class="badge t-project">write</span>'}</td></tr>`)
       .join("")}</table></div>
@@ -569,32 +585,44 @@ async function clients(_, query) {
 
 // ---------- activity ----------
 
-const KEY_ARGS = ["name", "id", "query", "project", "path", "version"];
-
-function activityTable(rows) {
+function activityTable(rawRows) {
+  const rows = [];
+  for (const row of rawRows) {
+    const previous = rows.at(-1);
+    if (row.event === "connect" && previous?.event === "connect" && row.client === previous.client && row.adapter === previous.adapter) {
+      previous.repeat = (previous.repeat || 1) + 1;
+    } else {
+      rows.push({ ...row });
+    }
+  }
   if (!rows.length) return '<div class="empty">Nothing yet.</div>';
   return `<table class="activity"><tr><th>When</th><th>App</th><th>What</th></tr>${rows
     .map((r) => {
       let what;
       if (r.event === "tool") {
         const args = r.args || {};
-        const key = KEY_ARGS.filter((k) => args[k]).map((k) => `<span>${k}: <b>${esc(args[k])}</b></span>`).join("");
-        const rest = Object.keys(args).filter((k) => !KEY_ARGS.includes(k));
-        what = `<code>${esc(r.tool)}</code> ${r.ok ? '<span class="ok">✓</span>' : `<span class="bad">✗ ${esc(r.error || "")}</span>`}
-          ${key || rest.length ? `<div class="meta">${key}${rest.length ? `<span>+ ${esc(rest.join(", "))}</span>` : ""}</div>` : ""}`;
+        const detail = Object.keys(args).length ? `<pre class="out">${esc(JSON.stringify(args, null, 2))}</pre>` : "";
+        const error = r.error ? `<pre class="out bad">${esc(r.error)}</pre>` : "";
+        what = `<code>${esc(r.tool)}</code> <span class="${r.ok ? "ok" : "bad"}">${r.ok ? "Completed" : "Failed"}</span>
+          ${detail || error ? `<details class="activity-detail"><summary>Details</summary>${detail}${error}</details>` : ""}`;
       } else if (r.event === "connect") {
-        what = `connected → <b>${esc(r.adapter)}</b> adapter <span class="meta inline">${esc(r.transport)}${r.clientVersion ? ` · v${esc(r.clientVersion)}` : ""}</span>`;
+        what = `Connected <span class="meta inline">${esc(r.adapter)}${r.repeat ? ` · ${r.repeat} times` : ""}</span>`;
+      } else if (r.event === "login") {
+        what = "Signed in";
       } else {
-        what = `edited ${esc(r.what || r.event)}`;
+        what = `Edited ${esc(r.what || r.event)}`;
       }
       return `<tr><td>${when(r.ts)}</td><td class="who">${esc(r.client)}</td><td>${what}</td></tr>`;
     })
     .join("")}</table>`;
 }
 
-async function activity() {
-  const d = await api("/api/activity?limit=300");
-  $app.innerHTML = `<h1>Activity</h1><p class="sub">Every connection and tool call, so you can see how each app actually uses the hub.</p><div class="panel">${activityTable(d.activity)}</div>`;
+async function activity(_, query) {
+  const limit = Math.min(500, Math.max(50, Number(query.get("limit")) || 50));
+  const d = await api(`/api/activity?limit=${limit}`);
+  $app.innerHTML = `<h1>Activity</h1><p class="sub">Recent sign-ins, connections and tool calls.</p>
+    <div class="panel table-scroll">${activityTable(d.activity)}</div>
+    ${d.activity.length === limit && limit < 500 ? `<p class="load-more"><a class="btn" href="#/activity?limit=${limit + 50}">Show 50 more</a></p>` : ""}`;
 }
 
 // ---------- boot ----------

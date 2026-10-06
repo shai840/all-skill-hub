@@ -166,6 +166,13 @@ test("oauth: PKCE mismatch and wrong redirect are rejected", async () => {
 test("web ui: API needs a session cookie; Google login sets it; history and restore work", async () => {
   const h = await hostedHub();
   try {
+    const shell = await fetch(`${h.base}/`, noFollow);
+    assert.equal(shell.status, 302, "the app shell must not render before sign-in");
+    assert.equal(shell.headers.get("location"), "/login?return=%2F");
+    const asset = await fetch(`${h.base}/app.js`, noFollow);
+    assert.equal(asset.status, 302);
+    const icon = await fetch(`${h.base}/icon.png`, noFollow);
+    assert.equal(icon.status, 200, "the icon stays visible during sign-in");
     const anon = await fetch(`${h.base}/api/overview`);
     assert.equal(anon.status, 401);
     assert.equal((await fetch(`${h.base}/api/health`)).status, 200);
@@ -176,6 +183,14 @@ test("web ui: API needs a session cookie; Google login sets it; history and rest
     assert.equal(cb.headers.get("location"), "/#/memories");
     const cookie = cb.headers.get("set-cookie").split(";")[0];
     const H = { cookie, "content-type": "application/json" };
+
+    const signedInShell = await fetch(`${h.base}/`, { headers: H, redirect: "manual" });
+    assert.equal(signedInShell.status, 200);
+    assert.match(await signedInShell.text(), /id="app"/);
+    const unsafeLogin = await fetch(`${h.base}/login?return=%2F%2Fevil.example`, noFollow);
+    const unsafeState = new URL(unsafeLogin.headers.get("location")).searchParams.get("state");
+    const unsafeCallback = await fetch(`${h.base}/auth/callback?code=c&state=${unsafeState}`, noFollow);
+    assert.equal(unsafeCallback.headers.get("location"), "/", "sign-in only returns to a local path");
 
     const me = await fetch(`${h.base}/api/me`, { headers: H }).then((r) => r.json());
     assert.equal(me.user, "owner@example.com");

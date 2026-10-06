@@ -198,7 +198,10 @@ export function createAuth({ baseUrl, stateFile, google, allowedEmails = [], all
     });
   }
 
-  const webLogin = (returnTo = "/") => googleRedirect({ kind: "web", returnTo: String(returnTo).startsWith("/") ? returnTo : "/" });
+  const webLogin = (returnTo = "/") => {
+    const target = String(returnTo);
+    return googleRedirect({ kind: "web", returnTo: target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\") ? target : "/" });
+  };
 
   /** Google sends the browser back here. Returns { redirect, cookie? } or throws. */
   async function callback(q) {

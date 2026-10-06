@@ -17,7 +17,7 @@ import { createAuth, COOKIE } from "./auth.mjs";
 import { createHistory } from "./core/history.mjs";
 import { HUB_DIR, WEB_DIR, HOST, PORT, BASE_URL, AUTH, HISTORY, SEED_DIR } from "./config.mjs";
 
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
 const SESSION_IDLE_MS = 60 * 60 * 1000;
 const MAX_BODY = 2 * 1024 * 1024;
 
@@ -201,7 +201,7 @@ export function createHttpHandler(store, { baseUrl = BASE_URL, auth = null, hist
           },
           byType: Object.fromEntries(MEMORY_TYPES.map((t) => [t, memories.filter((m) => m.type === t).length])),
           clients: Object.values(clients),
-          recentMemories: memories.sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, 6).map(memoryView),
+          recentMemories: memories.sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, 4).map(memoryView),
           activity: activity.slice(0, 12),
         });
       }
@@ -394,7 +394,15 @@ export function createHttpHandler(store, { baseUrl = BASE_URL, auth = null, hist
         }
         return await handleApi(req, res, url, user);
       }
-      if (req.method === "GET") return serveStatic(res, url.pathname);
+      if (req.method === "GET") {
+        // Keep the brand icon available on the sign-in journey, but never send
+        // the app shell or its assets before the browser has a session.
+        if (auth && !["/icon.png", "/favicon.ico"].includes(url.pathname) && !auth.verifyCookie(req)) {
+          res.writeHead(302, { location: `/login?return=${encodeURIComponent(url.pathname + url.search)}`, "cache-control": "no-store" });
+          return res.end();
+        }
+        return serveStatic(res, url.pathname);
+      }
       send(res, 405, "Method not allowed");
     } catch (e) {
       if (!res.headersSent) send(res, e.status || (e.userFacing ? 400 : 500), { error: e.message });
