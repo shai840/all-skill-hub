@@ -5,9 +5,9 @@ node_modules/
 # The live hub (memories, skills, profile, policy, imported sources). Locally it's
 # created from templates/hub on first run; hosted, it lives on the server's volume
 # with its own git history. Back it up to a separate PRIVATE repo (DATA_REPO_URL).
-hub/
-auth-state.json
-auth-state.json.tmp
+/hub/
+/auth-state.json
+/auth-state.json.tmp
 
 # ---- Personal, machine-specific files (kept locally, not published) ----
 plugins/all-skill-hub/.mcp.json
