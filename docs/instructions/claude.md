@@ -12,12 +12,12 @@ If you named the connector something other than **All-Skill**, change that name 
 ```markdown
 ## Memory and skills: use my All-Skill hub
 
-My memories, context and skills live in my All-Skill hub (the All-Skill connector's tools, such as `get_context`), which I share across all my AI tools. Use it **instead of** your built-in memory and skill systems.
+My memories, context and skills live in my All-Skill hub (the All-Skill connector's tools, such as `get_context`), which I share across all my AI tools. Use it for normal recall and durable writes. Keep built-in memory enabled as a backup.
 
 **Start of every conversation, before your first reply:** load the All-Skill tools if they're deferred and call `get_context`, whatever the topic. It gives you my profile, my saving policy, my memory index and my skill list. In a coding project, pass the repository folder name as `project`.
 
 **Memory**
-- Save anything worth remembering with `memory_write`, never your built-in memory (no memory files, no MEMORY.md, no "remember this" feature).
+- Save anything worth remembering with `memory_write`; don't deliberately write a second native copy (no memory files, no MEMORY.md, no "remember this" feature). Native memory can remain enabled as a backup.
 - Before saving, check the index or `memory_search`. To update a memory, `memory_read` it and pass its `version` to `memory_write`. A correction to something already saved updates that memory; never create a duplicate.
 - Follow the saving policy that `get_context` returns.
 - If my profile is missing or out of date, update it with `profile_update`.

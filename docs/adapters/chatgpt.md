@@ -10,9 +10,9 @@
 | `list_skills` / `search_skills` / `get_skill` / `read_skill_file` | Discover and follow live hub skills and supporting files. |
 | `save_skill` | Create a skill or update it with the version returned by `get_skill`. Optional `files` adds supporting text files. |
 
-The hub is the file-backed source of truth for durable context and user-authored skills. The adapter does not claim that an MCP instruction can disable ChatGPT's native memory. Native memory is controlled in ChatGPT settings. Project `AGENTS.md` and the current user request still take priority over retrieved context.
+The hub is the file-backed source for normal recall, deliberate durable writes, and user-authored skills. Native memory can stay enabled as a backup; the adapter does not claim that an MCP instruction controls ChatGPT's native settings. Project `AGENTS.md` and the current user request still take priority over retrieved context.
 
-Imported Codex and Claude source files live in the hosted volume's `hub/sources/`. They are searchable evidence, not automatically promoted active memories. The import manifest records source paths, hashes, and duplicate matches. A curated set of durable Codex preferences was promoted to active memories; dated run details remain available through `search` and `fetch`.
+Imported native-memory source files, when present, live in the hosted volume's `hub/sources/`. They are searchable evidence, not automatically promoted active memories. The import manifest records source paths, hashes, and duplicate matches; `search` and `fetch` expose the searchable records.
 
 The source `url` in a result points to the connected server's web UI/API for review. A ChatGPT chat can use `fetch` to read the document directly through MCP.
 

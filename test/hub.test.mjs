@@ -144,6 +144,21 @@ test("stdio: --client forces an adapter regardless of clientInfo", async () => {
   }
 });
 
+test("stdio: Codex selects the tool names used by its plugin instructions", async () => {
+  const c = stdioClient(tempHub(), "codex-mcp-client");
+  try {
+    await c.init();
+    const names = (await c.rpc("tools/list")).result.tools.map((t) => t.name);
+    for (const name of ["get_context", "search", "fetch", "get_skill", "read_skill_file", "save_memory", "save_skill"])
+      assert.ok(names.includes(name), `${name} should be available to Codex`);
+    assert.ok(!names.includes("memory_search"), "Codex should not receive the fallback adapter");
+    assert.match(text(await c.call("get_context")), /Test User/);
+    assert.match(text(await c.call("get_skill", { name: "commit-message" })), /commit-message/);
+  } finally {
+    c.close();
+  }
+});
+
 test("http: ChatGPT gets search/fetch in OpenAI's shape, and writes are visible to Claude", async () => {
   const hub = tempHub();
   const store = createStore(hub);

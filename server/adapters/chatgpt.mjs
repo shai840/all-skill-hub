@@ -66,7 +66,7 @@ function fetchDoc(store, id, baseUrl) {
 
 const json = (obj) => ({ text: JSON.stringify(obj), structured: obj });
 
-const INSTRUCTIONS = `All-Skill is the user's shared, file-backed memory and skill hub. Use it as the source of truth for durable context and user-authored workflows when connected. ChatGPT's native memory may still be surfaced by the product; do not claim this server disables or deletes it.
+const INSTRUCTIONS = `All-Skill is the user's shared, file-backed memory and skill hub. Use it for normal recall, deliberate durable writes, and user-authored workflows when connected. Native memory may remain enabled as a backup and may still be surfaced by the product; do not claim this server disables or deletes it. Do not silently substitute native memory for the hub.
 
 - At the start of every new chat call get_context with the project name when known. It returns the profile, active memory index, skill list, and saving policy.
 - Search before saving a durable fact. Use save_memory for one fact at a time, following the saving policy. Fetch an existing memory and pass its metadata.version to update it. Do not create an alias of an existing fact.
@@ -79,7 +79,7 @@ export default {
   id: "chatgpt",
   label: "ChatGPT",
   summary: "Search and fetch active memories, skills, and imported evidence; versioned writes to the shared hub.",
-  detect: (info) => /openai|chatgpt/i.test(info?.name || ""),
+  detect: (info) => /openai|chatgpt|codex/i.test(info?.name || ""),
   instructions: () => INSTRUCTIONS,
   tools: [
     {

@@ -34,16 +34,19 @@ Doing it by hand? [SETUP.md](SETUP.md) works for people too.
 
 ## Connect your apps
 
-Once it's running, add one connector per app: `https://YOUR-HUB/mcp` in Claude (Settings → Connectors → Add custom connector) or Claude Code, and `https://YOUR-HUB/mcp/chatgpt` in ChatGPT (developer mode). Each signs in with Google once. Step-by-step instructions, checks and troubleshooting are in [docs/connecting.md](docs/connecting.md).
+Once it's running, connect each app to the hosted endpoint: `https://YOUR-HUB/mcp` in Claude and Codex, and `https://YOUR-HUB/mcp/chatgpt` in ChatGPT.
+
+**ChatGPT custom connector/plugin:** [Create the custom MCP plugin in ChatGPT and connect it to Railway](docs/connecting.md#chatgpt). The current ChatGPT screen calls these **Plugins**: open [ChatGPT Plugins](https://chatgpt.com/plugins) → **Add** → **Add custom MCP server**. The [full connection guide](docs/connecting.md) also covers Codex, OAuth sign-in, checks, and troubleshooting.
 
 ## Make your apps actually use it
 
-Connecting the tools isn't enough. Each app needs an instruction to use the hub instead of its own memory:
+Connecting the tools isn't enough. Each app needs an instruction to use the hub for normal recall and deliberate saves:
 
 - Claude: [docs/instructions/claude.md](docs/instructions/claude.md), pasted into Settings → Profile (and `~/.claude/CLAUDE.md` for Claude Code)
 - ChatGPT: [docs/instructions/chatgpt.md](docs/instructions/chatgpt.md), pasted into Custom instructions
+- Codex: [docs/instructions/codex.md](docs/instructions/codex.md), pasted into its synced Custom instructions
 
-Then move your existing memories in with the bundled `import-native-memory` skill, and turn the apps' built-in memory off. [docs/testing.md](docs/testing.md) checks it all works, without the test prompts mentioning the hub.
+Then review existing memories with the bundled `import-native-memory` skill. Keep each app's native memory enabled as a backup, and use the hub for normal recall and deliberate saves. Some native details may not be exportable; the backup can help recover information missed or deleted from the hub. [docs/testing.md](docs/testing.md) checks the connection and behavior.
 
 ## Where your data lives
 

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/homebrew/bin/node ${PLUGIN_ROOT}/hooks/session_start.mjs",
+            "command": "/usr/bin/env node \"${PLUGIN_ROOT}/hooks/session_start.mjs\"",
             "statusMessage": "Loading All-Skill context",
             "additionalContextLimit": 5000
           }

@@ -143,29 +143,30 @@ Step-by-step instructions for each app, how to check each connection, and troubl
 |---|---|
 | **Claude** (web, desktop, mobile) | User: Settings → Connectors → **Add custom connector** → name `All-Skill`, URL `$HUB_URL/mcp` → Connect → sign in with Google. One connector covers every Claude surface. |
 | **Claude Code** | `claude mcp add --transport http --scope user all-skill $HUB_URL/mcp` (you can run this), then the user runs `/mcp` → all-skill → Authenticate to sign in. |
-| **ChatGPT** | User: Settings → Apps & Connectors → Advanced → enable **Developer mode**, then **Create** a connector with URL `$HUB_URL/mcp/chatgpt` and OAuth authentication; sign in with Google. Full read/write needs a plan that allows custom MCP write actions. |
-| **Codex** | Copy `plugins/all-skill-hub/.mcp.json.example` to `.mcp.json`, replace `YOUR-HUB-DOMAIN`, and install the plugin from `.agents/plugins/marketplace.json`. |
+| **ChatGPT** | User: follow [Create a custom ChatGPT MCP plugin/connector](docs/connecting.md#chatgpt). In the current UI: [ChatGPT Plugins](https://chatgpt.com/plugins) → **Add** → **Add custom MCP server**. Set the URL to `$HUB_URL/mcp/chatgpt`, choose OAuth with dynamic client registration, create the plugin, then **install** it and sign in with Google. Workspace permissions may limit write actions. |
+| **Codex** | Follow the exact install, OAuth, and verification commands in [docs/connecting.md#codex](docs/connecting.md#codex). Its local plugin connects to the hosted `$HUB_URL/mcp`; no local memory server is needed. |
 | Anything else | `$HUB_URL/mcp` (the server detects the app) or `$HUB_URL/mcp/<claude|chatgpt|generic>` |
 
 ---
 
 ## 6. Make the apps use the hub: install the instructions
 
-Connecting the tools isn't enough. Each app needs an instruction to use the hub instead of its own memory.
+Connecting the tools isn't enough. Each app needs an instruction to use the hub for normal recall and deliberate saves.
 
 - **Claude Code:** append the block from [docs/instructions/claude.md](docs/instructions/claude.md) to `~/.claude/CLAUDE.md` yourself (create it if missing; don't remove existing content).
 - **Claude (web/desktop/mobile):** you can't edit this setting. Tell the user to paste the same block into Settings → Profile → personal preferences. Print the block for them in a code block.
 - **ChatGPT:** tell the user to paste the block from [docs/instructions/chatgpt.md](docs/instructions/chatgpt.md) into Settings → Personalization → Custom instructions.
+- **Codex:** the installed plugin includes a startup hook and the `use-all-skill` routing skill. Add the account-wide [Codex custom instruction](docs/instructions/codex.md) under Settings → Personalization → Codex. Start a new Codex task after installation so it loads them. Check the Activity page for a `get_context` call; instructions and hooks do not guarantee a tool call.
 
 ---
 
 ## 7. Personalize and import
 
-1. **Profile:** in the user's main app, start a new chat and say "Fill in my All-Skill profile". The app updates it with `profile_update`. It can also be edited in the web UI under Profile.
+1. **Profile:** in the user's main app, start a new chat and say "Fill in my All-Skill profile". Claude uses `profile_update`; ChatGPT and Codex use `update_profile`. It can also be edited in the web UI under Profile.
 2. **Saving policy:** review `policy.md` with the user (web UI → Profile → Saving policy). Apps follow it before every write, and only the user can change it.
-3. **Import existing memory:** in each app that has built-in memory, start a new chat and say: *"Use the import-native-memory skill to move everything you remember about me into All-Skill."* The app shows a plan and waits for approval.
-4. **Then turn off the built-in memory** (Claude: Settings → Capabilities → Memory; ChatGPT: Settings → Personalization → Memory), so it stops competing with the hub.
-5. **Skills:** existing `SKILL.md` folders can be added with the web UI or with `skill_write` from any app. Anthropic's and OpenAI's built-in skills don't need copying.
+3. **Import existing memory:** in each app that has built-in memory, start a new chat and say: *"Use the import-native-memory skill to move everything you can access about me into All-Skill."* The app previews what is accessible and asks before storing any category that requires permission under the saving policy.
+4. **Keep built-in memory enabled as a backup.** Compare the app's visible memory list or summary with the hub's active memories and historical sources, and report gaps; some native memory cannot be exported completely. The app instructions make the hub the normal source for recall and durable writes. If the hub is missing a fact that native memory retains, surface the difference and verify it before restoring it to the hub under the saving policy.
+5. **Skills:** existing `SKILL.md` folders can be added with the web UI, Claude's `skill_write`, or ChatGPT/Codex's `save_skill`. Anthropic's and OpenAI's built-in skills don't need copying.
 
 ---
 
@@ -187,7 +188,7 @@ Have the user open a **new** chat in each app and send, without mentioning the h
 
 > Quick check-in: what am I working on, and what should I focus on this week?
 
-Then confirm in the web UI's **Activity** page that the app called `get_context` on its own. If it didn't, re-check step 6. The full behaviour test is in [docs/testing.md](docs/testing.md).
+Then confirm in the web UI's **Activity** page that the app called `get_context` on its own. Also try a new chat with a simple message, since some apps may skip tools for short tasks. If either check fails, re-check step 6 and the app's plugin/tool availability. Instructions and hooks can request a call but cannot guarantee one in every chat. The full behaviour test is in [docs/testing.md](docs/testing.md).
 
 ---
 

@@ -68,7 +68,7 @@ function memoryNotFound(store, name, project) {
   return `No memory named "${name}".` + (near.length ? ` Similar: ${near.map((m) => m.id).join(", ")}.` : "");
 }
 
-const INSTRUCTIONS = `This is the user's personal hub ("All-Skill"): one shared memory, context and skills store used by every AI tool they work with (Claude, ChatGPT, and others). Use it as your memory system, in addition to any built-in memory, so what you learn here is available everywhere.
+const INSTRUCTIONS = `This is the user's personal hub ("All-Skill"): one shared memory, context and skills store used by every AI tool they work with (Claude, ChatGPT, and others). Use the hub for normal recall and durable writes so what you learn here is available everywhere. Built-in memory may remain enabled as a backup; do not silently substitute it for the hub.
 
 ## Memory
 - At the start of a conversation call \`get_context\`. It returns the user's profile, the memory index (like MEMORY.md: one line per memory) and the list of skills. Load a full memory with \`memory_read\` only when it looks relevant.

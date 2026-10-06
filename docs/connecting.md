@@ -1,6 +1,6 @@
 # Connecting your apps to All-Skill
 
-Once the hub is running, connect each AI app to it. You only do this once per app; after that, the app signs in automatically and refreshes its login by itself.
+Once the hub is running, connect each AI app to it. Each app keeps its own OAuth connection to the hosted hub.
 
 **Your hub address** (`HUB_URL` below) is the public URL from setup, for example `https://hub-production-xxxx.up.railway.app`. Open it in a browser and sign in with Google once first, to confirm the hub works and your account is allowed.
 
@@ -38,23 +38,46 @@ Then start Claude Code, run `/mcp`, pick **all-skill** and choose **Authenticate
 
 ## ChatGPT
 
-Custom connectors need ChatGPT's **developer mode**. Writing to the hub (saving memories) needs a plan that allows custom-connector write actions; on plans that only allow read actions, ChatGPT can read the hub but not save to it.
+The ability to create and use custom MCP plugins depends on the ChatGPT account and workspace settings. This hub offers read and write tools; workspace permissions and confirmation settings can limit which actions are available.
 
-1. In ChatGPT, open **Settings → Apps & Connectors → Advanced settings** and turn on **Developer mode**.
-2. Back in **Apps & Connectors**, click **Create**.
-3. Name: `All-Skill`. MCP server URL: `HUB_URL/mcp/chatgpt`. Authentication: **OAuth**.
-4. Confirm you trust the connector, then click **Create**. Sign in with Google when asked.
+### Create the custom MCP plugin/connector
 
-**Check it:** in a new chat, add the All-Skill connector from the **+** menu (or Developer mode's tool picker) and ask *"Use All-Skill: what's in my profile?"*. ChatGPT should call `get_context` or `search`.
+In the current ChatGPT interface, the custom connector is created as a **Plugin**. You can reach it from the sidebar's **Plugins** entry, or from **Settings → Plugins → Browse directory**.
+
+1. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select **Add** at the top, then **Add custom MCP server**.
+2. Set **Name** to `All-Skill`. Under **Connection**, leave **Server URL** selected and enter `HUB_URL/mcp/chatgpt` (for this deployment: `https://hub-production-0242.up.railway.app/mcp/chatgpt`). Leave **Authentication** on **OAuth**. Use **dynamic client registration (DCR)** if advanced settings ask for a client setup method; do not enter a client ID or secret in ChatGPT. If an OpenID Connect option is offered, leave it off: this hub uses OAuth for access and does not expose an OIDC user-info endpoint.
+3. Review the access warning, select **I understand and want to continue**, then **Create as a plugin**.
+4. Find the new plugin in **Personal**, **install** it, and complete the Google sign-in with an allowed account. If `All-Skill Hub` is already installed and connected, use that existing plugin instead of creating a duplicate.
+
+**Check it:** in a new chat, select the installed plugin with `@All-Skill` and ask *"What's in my All-Skill profile?"*. ChatGPT should call `get_context` or `search`. Then try a new chat without naming the hub and check the Activity page. The custom instruction requests a call at the start of each chat, but ChatGPT may skip it; an installed plugin is not a guarantee of automatic use. See [OpenAI's custom MCP setup guide](https://developers.openai.com/api/docs/guides/custom-mcp-server).
 
 ## Codex
 
+Run these commands from the cloned repository root, after `$HUB_URL` points to your Railway origin (for example `https://hub-production-xxxx.up.railway.app`, with no trailing slash):
+
 ```bash
-cp plugins/all-skill-hub/.mcp.json.example plugins/all-skill-hub/.mcp.json
-# edit .mcp.json and replace YOUR-HUB-DOMAIN with your hub's domain
+node scripts/configure-codex-plugin.mjs "$HUB_URL"
+codex plugin marketplace list
 ```
 
-Install the plugin from this repo's marketplace (`.agents/plugins/marketplace.json`) in Codex, then sign in when Codex prompts for OAuth. The plugin's startup hook asks Codex to load your hub context at the start of each task.
+If `all-skill-local` is absent, add this cloned repository as the marketplace:
+
+```bash
+codex plugin marketplace add "$PWD"
+```
+
+Then install and inspect the plugin:
+
+```bash
+codex plugin add all-skill-hub@all-skill-local
+codex mcp get all-skill-hub
+```
+
+The configuration command writes both MCP fields to the same hosted URL. It leaves an existing connection alone if it points somewhere else, so review that file before changing it. The marketplace is named `all-skill-local` because the plugin files come from this clone; the memory and skill data still come from Railway. The personal `.mcp.json` is git-ignored. Check that `codex mcp get` shows your Railway URL. If the install did not open a sign-in page, run `codex mcp login all-skill-hub --oauth-client-registration dcr` and choose an allowlisted Google account. The plugin's hook needs Node on your `PATH`.
+
+Start a **new Codex task** after install. The hook instructs Codex to call `get_context`, and this task should list `search`, `fetch`, `get_skill`, and `save_memory` as All-Skill tools. Ask *"What's in my All-Skill profile?"* and confirm the hub's **Activity** page records a Codex `get_context` call. Then start another new task with a normal request that does not name the hub; check Activity again. Hooks can direct the model but cannot force every tool call. A task opened before a server update may still list old names and return `Unknown tool`; start a new task to refresh its tool snapshot. If a fresh task still sees `memory_search`/`skill_get`, check the Activity page for the reported client name and adapter, then update the server's detection rule.
+
+For the same preference across desktop and web, paste the [Codex custom instruction](instructions/codex.md) into ChatGPT Settings → Personalization → Codex. It points Codex at Railway for normal memory and skill work while keeping local native memory as a backup.
 
 ## Any other MCP app
 
@@ -76,6 +99,7 @@ Connecting gives apps the tools, but they won't use them consistently until you 
 
 - Claude: [instructions/claude.md](instructions/claude.md)
 - ChatGPT: [instructions/chatgpt.md](instructions/chatgpt.md)
+- Codex: [instructions/codex.md](instructions/codex.md)
 
 Then run the [behaviour test](testing.md).
 
@@ -90,7 +114,7 @@ Then run the [behaviour test](testing.md).
 | It keeps asking you to sign in again | The server's login state isn't persisting. Make sure the volume is mounted at `/data`. |
 | **Two copies of every tool** | The app is connected twice, for example an old local entry plus the hosted connector. Remove one. |
 | ChatGPT can read but not save | Your plan or workspace only allows read actions for custom connectors. |
-| The app connects but ignores the hub | The instructions aren't installed, or the app's own memory is still on and competing. See "After connecting". |
+| The app connects but ignores the hub | Check its instructions or hook, whether the plugin is enabled in that chat, and the Activity page. Some short requests may not trigger a tool call. See "After connecting". |
 | Every request gets **401** | Expected without a login. If it persists after connecting, disconnect and reconnect the connector to get a fresh login. |
 
 The web UI's **Activity** page shows every connection and tool call, and which app made it. It's the quickest way to see whether an app is reaching the hub at all.

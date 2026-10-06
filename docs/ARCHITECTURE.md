@@ -20,7 +20,7 @@ One hub, many AI apps. The production hub stores memories, context and skills as
 
 ## The hub folder (core data)
 
-In production, the paths below are under `/data/hub` on the Railway volume. The repository's `hub/` folder is the initial seed used only when the volume is empty; it is not a live mirror of production.
+In production, the paths below are under `/data/hub` on the Railway volume. The repository's `templates/hub/` folder is copied into an empty volume on first startup; the git-ignored local `hub/` folder is not a live mirror of production.
 
 | Path | What | Format |
 |---|---|---|
@@ -61,7 +61,7 @@ Related: [[coding-style]]
 At `initialize`, MCP clients send `clientInfo.name`. `server/adapters/index.mjs` asks each adapter's `detect()` in order and falls back to `generic`:
 
 - Claude adapter: names matching `claude|anthropic` (the Claude desktop app, Claude Code).
-- ChatGPT adapter: names matching `openai|chatgpt`.
+- ChatGPT/Codex adapter: names matching `openai|chatgpt|codex`.
 
 Detection can be overridden: `/mcp/<adapter>` over HTTP, or `--client <adapter>` / `ALL_SKILL_CLIENT` over stdio. Every connection is logged with the client name it reported and the adapter chosen, so the Activity page shows what each app actually sends.
 
@@ -105,4 +105,4 @@ See [adapters/chatgpt.md](adapters/chatgpt.md).
 - **stdio** (`server/index.mjs`): retained for local development and tests. No current app connection should launch it for live memory work.
 - **Streamable HTTP** (`server/http.mjs`, `npm start`): `POST /mcp` with JSON responses and an `Mcp-Session-Id` header. Local mode listens on `127.0.0.1` and rejects non-localhost `Origin` headers. Hosted Railway mode listens on `0.0.0.0` behind OAuth.
 
-Cloud ChatGPT cannot connect to this loopback listener directly. The Railway deployment provides an OAuth-protected HTTPS endpoint; see [ChatGPT connection](chatgpt-connection.md). An unauthenticated public forwarding URL would expose personal data and write tools.
+Cloud ChatGPT cannot connect to this loopback listener directly. The Railway deployment provides an OAuth-protected HTTPS endpoint; see [ChatGPT connection](connecting.md#chatgpt). An unauthenticated public forwarding URL would expose personal data and write tools.
