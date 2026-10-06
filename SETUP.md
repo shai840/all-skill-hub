@@ -131,16 +131,18 @@ Connect the Claude desktop app through its config file. **The app rewrites that 
 open -a Terminal scripts/install-local-claude-desktop.command   # macOS
 ```
 
-Claude Code: `claude mcp add all-skill -s user -- node "$PWD/server/index.mjs"`
+Claude Code: `claude mcp add --scope user all-skill -- node "$PWD/server/index.mjs"`
 
 ---
 
 ## 5. Connect the apps
 
+Step-by-step instructions for each app, how to check each connection, and troubleshooting are in **[docs/connecting.md](docs/connecting.md)**. Walk the user through the steps for the apps they use. Summary:
+
 | App | How |
 |---|---|
 | **Claude** (web, desktop, mobile) | User: Settings → Connectors → **Add custom connector** → name `All-Skill`, URL `$HUB_URL/mcp` → Connect → sign in with Google. One connector covers every Claude surface. |
-| **Claude Code** | `claude mcp add --transport http all-skill $HUB_URL/mcp -s user`, then `/mcp` in Claude Code to sign in. |
+| **Claude Code** | `claude mcp add --transport http --scope user all-skill $HUB_URL/mcp` (you can run this), then the user runs `/mcp` → all-skill → Authenticate to sign in. |
 | **ChatGPT** | User: Settings → Apps & Connectors → Advanced → enable **Developer mode**, then **Create** a connector with URL `$HUB_URL/mcp/chatgpt` and OAuth authentication; sign in with Google. Full read/write needs a plan that allows custom MCP write actions. |
 | **Codex** | Copy `plugins/all-skill-hub/.mcp.json.example` to `.mcp.json`, replace `YOUR-HUB-DOMAIN`, and install the plugin from `.agents/plugins/marketplace.json`. |
 | Anything else | `$HUB_URL/mcp` (the server detects the app) or `$HUB_URL/mcp/<claude|chatgpt|generic>` |

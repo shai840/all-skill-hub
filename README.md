@@ -32,6 +32,10 @@ Doing it by hand? [SETUP.md](SETUP.md) works for people too.
 | Google Cloud OAuth client (Web application). An existing one can be reused. | ✓ | |
 | Private GitHub repo + token for history backup | optional | |
 
+## Connect your apps
+
+Once it's running, add one connector per app: `https://YOUR-HUB/mcp` in Claude (Settings → Connectors → Add custom connector) or Claude Code, and `https://YOUR-HUB/mcp/chatgpt` in ChatGPT (developer mode). Each signs in with Google once. Step-by-step instructions, checks and troubleshooting are in [docs/connecting.md](docs/connecting.md).
+
 ## Make your apps actually use it
 
 Connecting the tools isn't enough. Each app needs an instruction to use the hub instead of its own memory:
