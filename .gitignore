@@ -1,0 +1,27 @@
+node_modules/
+.DS_Store
+
+# ---- Your data never goes in the code repo ----
+# The live hub (memories, skills, profile, policy, imported sources). Locally it's
+# created from templates/hub on first run; hosted, it lives on the server's volume
+# with its own git history. Back it up to a separate PRIVATE repo (DATA_REPO_URL).
+hub/
+auth-state.json
+auth-state.json.tmp
+
+# ---- Personal, machine-specific files (kept locally, not published) ----
+plugins/all-skill-hub/.mcp.json
+plugins/all-skill-hub/skills/*
+!plugins/all-skill-hub/skills/use-all-skill/
+!plugins/all-skill-hub/skills/commit-message/
+!plugins/all-skill-hub/skills/hub-check/
+!plugins/all-skill-hub/skills/import-native-memory/
+!plugins/all-skill-hub/skills/memory-hygiene/
+!plugins/all-skill-hub/skills/skill-authoring/
+docs/migration.md
+docs/chatgpt-connection.md
+scripts/promote-codex-preferences.mjs
+scripts/expose-native-skills.mjs
+scripts/install-claude-desktop.command
+scripts/retire-local-hub.command
+docs/my-setup.md

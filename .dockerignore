@@ -1,0 +1,6 @@
+.git
+node_modules
+**/.DS_Store
+hub/.activity.jsonl
+auth-state.json
+test

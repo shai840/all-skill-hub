@@ -1,0 +1,25 @@
+{
+  "name": "all-skill-hub",
+  "version": "0.1.0+codex.20261006174349",
+  "description": "Use the hosted All-Skill memory and skill hub across AI tools.",
+  "author": {
+    "name": "Shai Levin"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "All Skill Hub",
+    "shortDescription": "Shared hosted memories and skills.",
+    "longDescription": "Search, read, and update your shared memories and skills through the OAuth-protected Railway All-Skill MCP server. Includes historical imported sources with provenance.",
+    "developerName": "Shai Levin",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Load my All-Skill context for this project.",
+      "Find the relevant hub skill and use it."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

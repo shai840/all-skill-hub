@@ -1,0 +1,13 @@
+{
+  "name": "all-skill",
+  "version": "0.2.0",
+  "private": true,
+  "description": "One hosted hub for memories, context and skills, shared by Claude, ChatGPT and other AI tools over MCP.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/daemon.mjs",
+    "test": "node --test test/*.test.mjs",
+    "deploy": "scripts/deploy.sh"
+  },
+  "engines": { "node": ">=20" }
+}

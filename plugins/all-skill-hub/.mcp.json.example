@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "all-skill-hub": {
+      "type": "http",
+      "url": "https://YOUR-HUB-DOMAIN/mcp",
+      "oauth_resource": "https://YOUR-HUB-DOMAIN/mcp"
+    }
+  }
+}

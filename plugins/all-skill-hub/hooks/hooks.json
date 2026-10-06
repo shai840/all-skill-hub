@@ -1,0 +1,18 @@
+{
+  "description": "Load the live All-Skill memory and skill index at the start of every local chat.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/homebrew/bin/node ${PLUGIN_ROOT}/hooks/session_start.mjs",
+            "statusMessage": "Loading All-Skill context",
+            "additionalContextLimit": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
